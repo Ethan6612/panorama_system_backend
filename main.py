@@ -1924,14 +1924,17 @@ async def get_shop_list(
         page: int = Query(1, ge=1),
         pageSize: int = Query(10, ge=1),
         keyword: Optional[str] = None,
-        current_user: User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db)  # 只保留数据库依赖，移除用户认证依赖
 ):
     """
-    获取商铺列表
+    获取商铺列表（公开接口，无需认证）
     """
     try:
-        query = db.query(Shop)
+        # 只查询审核通过且状态为显示的商铺
+        query = db.query(Shop).filter(
+            Shop.audit_status == 'approved',  # 只显示已审核通过的
+            Shop.status == True                # 只显示状态为显示的
+        )
 
         # 搜索过滤
         if keyword:
@@ -1964,9 +1967,6 @@ async def get_shop_list(
                 "user": "酒店"
             }
 
-            # 确保 audit_status 有默认值
-            audit_status = shop.audit_status or 'pending'
-
             shop_list.append({
                 "id": shop.shop_id,
                 "username": shop.username,
@@ -1977,9 +1977,8 @@ async def get_shop_list(
                 "size": shop.size,
                 "role": shop.role,
                 "roleText": role_map.get(shop.role, "未知"),
-                "status": shop.status,  # 显示状态
-                "audit_status": audit_status,  # 审核状态
-                "auditStatus": audit_status,   # 兼容前端两种字段名
+                "status": shop.status,
+                "audit_status": shop.audit_status,
                 "lastLoginTime": shop.last_login_time.strftime("%Y-%m-%d %H:%M:%S") if shop.last_login_time else "从未更新"
             })
 
