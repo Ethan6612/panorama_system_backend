@@ -652,7 +652,8 @@ async def get_panoramas(db: Session = Depends(get_db)):
             "preview_images": preview_urls,
             "is_used": location is not None,
             "location_id": location.location_id if location else None,
-            "location_name": location.name if location else None
+            "location_name": location.name if location else None,
+            "created_at": panorama.created_at.strftime("%Y-%m-%d %H:%M:%S") if panorama.created_at else None
         }
 
         panoramas.append(panorama_info)
