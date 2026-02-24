@@ -379,3 +379,74 @@ class TaskHistoryResponse(BaseModel):
     old_status: Optional[str] = None
     new_status: Optional[str] = None
     history_metadata: Optional[Dict[str, Any]] = None
+
+
+# 在 models.py 中添加以下模型定义
+
+# 性能监控相关模型
+class PerformanceHistoryItem(BaseModel):
+    timestamp: datetime
+    cpuUsage: float
+    memoryUsage: float
+    diskUsage: float
+    diskIOPS: int
+    networkUpload: float
+    networkDownload: float
+    apiResponseTime: float
+
+
+class RealTimeMetrics(BaseModel):
+    cpuUsage: float
+    cpuTrend: float
+    memoryUsage: float
+    memoryTrend: float
+    diskUsage: float
+    diskTrend: float
+    apiResponseTime: float
+    apiTrend: float
+
+
+class PerformanceResponseData(BaseModel):
+    realTime: RealTimeMetrics
+    history: List[PerformanceHistoryItem]
+
+
+# 服务状态相关模型
+class ServiceStatusDetail(BaseModel):
+    name: str
+    display_name: Optional[str] = None
+    status: str  # running, warning, stopped
+    pid: Optional[int] = None
+    cpu: Optional[float] = None  # CPU使用率
+    memory: Optional[int] = None  # 内存使用(bytes)
+    memory_text: Optional[str] = None  # 格式化后的内存
+    uptime: str
+    lastCheck: datetime
+    port: Optional[int] = None
+    description: Optional[str] = None
+    health_check_url: Optional[str] = None
+
+
+class ServiceLogItem(BaseModel):
+    time: datetime
+    level: str
+    message: str
+    source: Optional[str] = None
+
+
+# 监控API响应模型
+class MonitorPerformanceResponse(BaseResponse):
+    data: Optional[PerformanceResponseData] = None
+
+
+class MonitorServicesResponse(BaseResponse):
+    data: Optional[List[ServiceStatusDetail]] = None
+
+
+class MonitorServiceLogsResponse(BaseResponse):
+    data: Optional[List[ServiceLogItem]] = None
+
+
+# 时间范围查询参数
+class TimeRangeQuery(BaseModel):
+    timeRange: str = "1h"  # 1h, 24h, 7d, 30d

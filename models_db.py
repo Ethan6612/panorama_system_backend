@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Boolean, JSON, Enum, ForeignKey, LargeBinary
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Boolean, JSON, Enum, ForeignKey, LargeBinary, BigInteger
 from sqlalchemy.dialects.mysql import LONGBLOB
 from sqlalchemy.sql import func
 from database import Base
-
+from datetime import datetime, date, time, timedelta
 
 class User(Base):
     __tablename__ = "users"
@@ -222,3 +222,54 @@ class TaskComment(Base):
     created_by = Column(Integer, ForeignKey('government_users.gov_user_id'), nullable=False)
     created_at = Column(DateTime, default=func.now())
     attachments = Column(JSON)  # 附件
+
+
+
+class SystemPerformance(Base):
+    __tablename__ = "system_performance"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=datetime.now, index=True)
+    cpu_usage = Column(Float, default=0.0)  # CPU使用率
+    memory_usage = Column(Float, default=0.0)  # 内存使用率
+    disk_usage = Column(Float, default=0.0)  # 磁盘使用率
+    disk_iops = Column(Integer, default=0)  # 磁盘IOPS
+    network_upload = Column(Float, default=0.0)  # 网络上行流量(MB)
+    network_download = Column(Float, default=0.0)  # 网络下行流量(MB)
+    api_response_time = Column(Float, default=0.0)  # API响应时间(ms)
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class ServiceDetail(Base):
+    __tablename__ = "service_details"
+
+    service_id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False, index=True)
+    display_name = Column(String(100))  # 显示名称
+    description = Column(Text)  # 服务描述
+    status = Column(String(20), default="running")  # running, warning, stopped
+    pid = Column(Integer)  # 进程ID
+    cpu_usage = Column(Float, default=0.0)  # CPU使用率
+    memory_usage = Column(BigInteger, default=0)  # 内存使用(bytes)
+    uptime = Column(String(100))  # 运行时间
+    last_check = Column(DateTime, default=datetime.now)
+    port = Column(Integer)  # 服务端口
+    health_check_url = Column(String(255))  # 健康检查URL
+    auto_restart = Column(Boolean, default=True)  # 是否自动重启
+    max_retries = Column(Integer, default=3)  # 最大重试次数
+    retry_count = Column(Integer, default=0)  # 当前重试次数
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class ServiceLog(Base):
+    __tablename__ = "service_logs"
+
+    log_id = Column(Integer, primary_key=True, index=True)
+    service_name = Column(String(100), nullable=False, index=True)
+    timestamp = Column(DateTime, server_default=func.now(), index=True)
+    level = Column(String(20), default="INFO")
+    message = Column(Text, nullable=False)
+    source = Column(String(100))
+    log_metadata = Column(JSON, name="metadata")  # 重命名为 log_metadata，但数据库列名保持为 metadata
+    created_at = Column(DateTime, server_default=func.now())

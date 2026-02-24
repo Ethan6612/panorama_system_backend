@@ -7,12 +7,13 @@ from sqlalchemy.orm import Session
 from PIL import Image
 import io
 import random
-from sqlalchemy import case
+from sqlalchemy import case, func
 import exifread
 import re
 from geopy.geocoders import Nominatim
 import json
 import glob
+import math
 
 
 def init_database():
@@ -65,7 +66,7 @@ def init_database():
             db.flush()  # 获取用户ID
             print("初始用户数据插入成功")
 
-            # 插入服务状态数据
+            # 插入服务状态数据（原表）
             services = [
                 ServiceStatus(
                     name="数据库服务",
@@ -91,6 +92,208 @@ def init_database():
             ]
             db.add_all(services)
             print("服务状态数据插入成功")
+
+            # 插入详细服务数据（新表）
+            try:
+                service_details = [
+                    ServiceDetail(
+                        service_id=1,
+                        name="web_server",
+                        display_name="Web服务器",
+                        description="主Web应用服务器",
+                        status="running",
+                        pid=12345,
+                        cpu_usage=15.2,
+                        memory_usage=256 * 1024 * 1024,  # 256MB
+                        uptime="7天3小时",
+                        last_check=datetime.now(),
+                        port=8080,
+                        health_check_url="http://localhost:8080/health",
+                        auto_restart=True,
+                        max_retries=3
+                    ),
+                    ServiceDetail(
+                        service_id=2,
+                        name="database",
+                        display_name="数据库服务",
+                        description="MySQL数据库服务",
+                        status="running",
+                        pid=12346,
+                        cpu_usage=32.1,
+                        memory_usage=1024 * 1024 * 1024,  # 1GB
+                        uptime="15天2小时",
+                        last_check=datetime.now(),
+                        port=3306,
+                        health_check_url=None,
+                        auto_restart=True,
+                        max_retries=5
+                    ),
+                    ServiceDetail(
+                        service_id=3,
+                        name="cache",
+                        display_name="缓存服务",
+                        description="Redis缓存服务",
+                        status="warning",
+                        pid=12347,
+                        cpu_usage=85.3,
+                        memory_usage=512 * 1024 * 1024,  # 512MB
+                        uptime="3天8小时",
+                        last_check=datetime.now(),
+                        port=6379,
+                        health_check_url="http://localhost:6379/ping",
+                        auto_restart=True,
+                        max_retries=3,
+                        retry_count=1
+                    ),
+                    ServiceDetail(
+                        service_id=4,
+                        name="message_queue",
+                        display_name="消息队列",
+                        description="RabbitMQ消息队列",
+                        status="running",
+                        pid=12348,
+                        cpu_usage=8.7,
+                        memory_usage=128 * 1024 * 1024,  # 128MB
+                        uptime="30天1小时",
+                        last_check=datetime.now(),
+                        port=5672,
+                        health_check_url=None,
+                        auto_restart=True,
+                        max_retries=3
+                    ),
+                    ServiceDetail(
+                        service_id=5,
+                        name="scheduler",
+                        display_name="定时任务",
+                        description="定时任务调度器",
+                        status="stopped",
+                        pid=None,
+                        cpu_usage=0.0,
+                        memory_usage=0,
+                        uptime="0",
+                        last_check=datetime.now() - timedelta(hours=1),
+                        port=None,
+                        health_check_url=None,
+                        auto_restart=True,
+                        max_retries=3
+                    ),
+                    ServiceDetail(
+                        service_id=6,
+                        name="file_service",
+                        display_name="文件服务",
+                        description="文件存储服务",
+                        status="running",
+                        pid=12349,
+                        cpu_usage=12.4,
+                        memory_usage=196 * 1024 * 1024,  # 196MB
+                        uptime="10天5小时",
+                        last_check=datetime.now(),
+                        port=9000,
+                        health_check_url="http://localhost:9000/health",
+                        auto_restart=True,
+                        max_retries=3
+                    ),
+                    ServiceDetail(
+                        service_id=7,
+                        name="search_service",
+                        display_name="搜索服务",
+                        description="Elasticsearch搜索服务",
+                        status="running",
+                        pid=12350,
+                        cpu_usage=18.6,
+                        memory_usage=768 * 1024 * 1024,  # 768MB
+                        uptime="25天6小时",
+                        last_check=datetime.now(),
+                        port=9200,
+                        health_check_url="http://localhost:9200/_cluster/health",
+                        auto_restart=True,
+                        max_retries=3
+                    ),
+                    ServiceDetail(
+                        service_id=8,
+                        name="monitoring",
+                        display_name="监控服务",
+                        description="系统监控服务",
+                        status="running",
+                        pid=12351,
+                        cpu_usage=3.2,
+                        memory_usage=64 * 1024 * 1024,  # 64MB
+                        uptime="45天12小时",
+                        last_check=datetime.now(),
+                        port=9090,
+                        health_check_url="http://localhost:9090/metrics",
+                        auto_restart=True,
+                        max_retries=3
+                    )
+                ]
+                db.add_all(service_details)
+                print("详细服务数据插入成功")
+            except Exception as e:
+                print(f"插入详细服务数据时出错: {e}")
+
+            # 插入系统性能历史数据
+            try:
+                print("开始生成系统性能历史数据...")
+                now = datetime.now()
+
+                # 生成最近24小时的数据（每5分钟一个点）
+                for i in range(288):  # 24小时 * 12 (每5分钟)
+                    time_point = now - timedelta(minutes=(287 - i) * 5)
+
+                    # 生成有一定趋势的随机数据
+                    hour = time_point.hour
+                    minute = time_point.minute
+
+                    # CPU使用率：白天高，夜间低
+                    base_cpu = 20
+                    if 9 <= hour <= 18:  # 工作时间
+                        base_cpu += 30 * math.sin(hour / 24 * 2 * math.pi) + 20
+                    elif 19 <= hour <= 22:  # 晚上
+                        base_cpu += 15
+
+                    # 添加随机波动
+                    cpu_usage = max(5, min(95, base_cpu + random.uniform(-10, 10)))
+
+                    # 内存使用率：逐步增长
+                    base_memory = 40 + (i / 288) * 20
+                    memory_usage = max(30, min(90, base_memory + random.uniform(-5, 5)))
+
+                    # 磁盘使用率：缓慢增长
+                    base_disk = 65 + (i / 288) * 10
+                    disk_usage = max(60, min(95, base_disk + random.uniform(-2, 2)))
+
+                    # 磁盘IOPS：白天活跃
+                    if 9 <= hour <= 18:
+                        disk_iops = random.randint(500, 2000)
+                    else:
+                        disk_iops = random.randint(100, 800)
+
+                    # 网络流量
+                    network_upload = random.uniform(1, 50)
+                    network_download = random.uniform(5, 100)
+
+                    # API响应时间
+                    if 9 <= hour <= 18:
+                        api_response_time = random.uniform(50, 300)
+                    else:
+                        api_response_time = random.uniform(30, 150)
+
+                    performance = SystemPerformance(
+                        timestamp=time_point,
+                        cpu_usage=round(cpu_usage, 1),
+                        memory_usage=round(memory_usage, 1),
+                        disk_usage=round(disk_usage, 1),
+                        disk_iops=disk_iops,
+                        network_upload=round(network_upload, 2),
+                        network_download=round(network_download, 2),
+                        api_response_time=round(api_response_time, 1),
+                        created_at=time_point
+                    )
+                    db.add(performance)
+
+                print("系统性能历史数据生成成功")
+            except Exception as e:
+                print(f"插入系统性能数据时出错: {e}")
 
             # 插入系统监控示例数据
             monitoring_data = [
@@ -357,6 +560,112 @@ def init_database():
             ]
             db.add_all(shops)
             print("商铺数据插入成功")
+
+            # 插入服务日志示例数据
+            print("开始生成服务日志示例数据...")
+            try:
+                service_names = ["web_server", "database", "cache", "message_queue", "file_service", "search_service",
+                                 "monitoring"]
+                levels = ["INFO", "WARN", "ERROR"]
+
+                for service_name in service_names:
+                    # 生成最近24小时的日志
+                    for i in range(50):
+                        log_time = datetime.now() - timedelta(minutes=random.randint(0, 1440))
+                        log_level = random.choice(levels)
+
+                        # 根据服务类型和日志级别生成不同的消息
+                        if service_name == "web_server":
+                            messages = [
+                                f"收到来自192.168.1.{random.randint(1, 254)}的请求",
+                                f"API请求处理平均时间: {random.randint(50, 200)}ms",
+                                f"当前连接数: {random.randint(100, 500)}",
+                                "静态资源加载完成",
+                                "数据库连接池初始化完成",
+                                "负载均衡检查通过",
+                                f"内存使用率: {random.randint(30, 80)}%"
+                            ]
+                        elif service_name == "database":
+                            messages = [
+                                f"执行SQL查询耗时: {random.randint(20, 100)}ms",
+                                f"连接池使用率: {random.randint(30, 90)}%",
+                                "备份任务执行完成",
+                                "索引优化完成",
+                                f"查询缓存命中率: {random.randint(70, 95)}%",
+                                "慢查询日志记录",
+                                "数据库连接正常",
+                                "数据同步完成"
+                            ]
+                        elif service_name == "cache":
+                            messages = [
+                                f"缓存命中率: {random.randint(80, 98)}%",
+                                f"内存使用率: {random.randint(60, 95)}%",
+                                "执行定期清理",
+                                f"连接数: {random.randint(20, 100)}",
+                                "持久化操作完成",
+                                "集群同步中",
+                                "性能监控正常"
+                            ]
+                        elif service_name == "file_service":
+                            messages = [
+                                f"文件上传成功，大小: {random.randint(1, 100)}MB",
+                                "文件删除操作完成",
+                                "磁盘空间检查正常",
+                                f"当前存储文件数: {random.randint(1000, 10000)}",
+                                "备份任务执行中",
+                                "文件同步完成"
+                            ]
+                        else:
+                            messages = [
+                                "服务启动成功",
+                                "正在初始化...",
+                                "检测到配置变更",
+                                "内存使用率正常",
+                                "定时任务执行完成",
+                                "健康检查通过",
+                                f"处理请求数: {random.randint(100, 1000)}"
+                            ]
+
+                        # 如果是ERROR级别，生成错误消息
+                        if log_level == "ERROR":
+                            error_types = [
+                                "连接超时",
+                                "内存不足",
+                                "磁盘空间不足",
+                                "数据库连接失败",
+                                "网络异常",
+                                "资源竞争"
+                            ]
+                            message = f"错误: {random.choice(error_types)}，已自动重试"
+                        elif log_level == "WARN":
+                            warning_types = [
+                                "资源使用率过高",
+                                "响应时间超过阈值",
+                                "连接数接近上限",
+                                "磁盘空间剩余不足20%",
+                                "缓存命中率下降"
+                            ]
+                            message = f"警告: {random.choice(warning_types)}"
+                        else:
+                            message = random.choice(messages)
+
+                        log = ServiceLog(
+                            service_name=service_name,
+                            timestamp=log_time,
+                            level=log_level,
+                            message=message,
+                            source=service_name,
+                            metadata={
+                                "timestamp": log_time.isoformat(),
+                                "level": log_level,
+                                "service": service_name
+                            }
+                        )
+                        db.add(log)
+
+                print("服务日志示例数据生成成功")
+            except Exception as e:
+                print(f"插入服务日志数据时出错: {e}")
 
             db.commit()
             print("所有基础数据插入成功！")
@@ -938,7 +1247,10 @@ def check_database_status():
             'task_history': TaskHistory,
             'task_comments': TaskComment,
             'service_status': ServiceStatus,
+            'service_details': ServiceDetail,
+            'system_performance': SystemPerformance,
             'system_monitoring': SystemMonitoring,
+            'service_logs': ServiceLog,
             'operation_logs': OperationLog
         }
 
@@ -957,6 +1269,49 @@ def check_database_status():
             print(f"已关联全景图的地点: {locations_with_panorama} 个")
         except:
             print("无法检查地点关联关系")
+
+        # 检查监控数据统计
+        try:
+            # 服务状态统计
+            service_stats = db.query(
+                ServiceDetail.status,
+                func.count(ServiceDetail.service_id).label('count')
+            ).group_by(ServiceDetail.status).all()
+
+            if service_stats:
+                print(f"\n=== 服务状态统计 ===")
+                for status, count in service_stats:
+                    print(f"{status}: {count} 个服务")
+        except:
+            print("\n无法检查服务状态统计")
+
+        # 检查系统性能数据
+        try:
+            latest_performance = db.query(SystemPerformance).order_by(SystemPerformance.timestamp.desc()).first()
+            if latest_performance:
+                print(f"\n=== 最新系统性能数据 ===")
+                print(f"时间: {latest_performance.timestamp}")
+                print(f"CPU使用率: {latest_performance.cpu_usage}%")
+                print(f"内存使用率: {latest_performance.memory_usage}%")
+                print(f"磁盘使用率: {latest_performance.disk_usage}%")
+                print(f"API响应时间: {latest_performance.api_response_time}ms")
+        except:
+            print("\n无法检查系统性能数据")
+
+        # 检查日志数据
+        try:
+            latest_logs = db.query(
+                ServiceLog.service_name,
+                ServiceLog.level,
+                func.count(ServiceLog.log_id).label('count')
+            ).group_by(ServiceLog.service_name, ServiceLog.level).all()
+
+            if latest_logs:
+                print(f"\n=== 服务日志统计 ===")
+                for service_name, level, count in latest_logs:
+                    print(f"{service_name} - {level}: {count} 条")
+        except:
+            print("\n无法检查日志数据")
 
         # 检查全景图统计
         try:
@@ -1093,7 +1448,7 @@ images/
 if __name__ == "__main__":
     print("开始初始化全景系统数据库...")
     print("=" * 60)
-    print("本版本支持从images目录结构智能导入图片")
+    print("本版本支持完整的监控系统数据表")
     print("=" * 60)
 
     # 安装必要依赖
@@ -1127,8 +1482,13 @@ if __name__ == "__main__":
     print("  - 政府管理员: gov_admin / 123456")
     print("  - 监管员: gov_supervisor / 123456")
     print("  - 执法人员: gov_officer / 123456")
+    print("\n监控系统特性：")
+    print("  - 支持详细的系统性能监控")
+    print("  - 支持服务状态管理")
+    print("  - 支持服务日志查看")
+    print("  - 支持系统健康状态评估")
     print("\nAPI服务启动命令：")
     print("  uvicorn main:app --reload --host 0.0.0.0 --port 8000")
     print("\n数据查看：")
     print("  - 访问 http://localhost:8000/docs 查看API文档")
-    print("  - 访问数据库查看导入的数据")
+    print("  - 访问监控页面查看系统性能数据")
